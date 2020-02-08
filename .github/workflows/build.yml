@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@master
       - name: Install fuse
-        run: sudo apt-get update -y && sudo apt-get install -y fuse
+        run: sudo apt-get update -y && sudo apt-get install -y fuse libfuse-dev
       - uses: actions-rs/cargo@v1
         with:
           command: build
