@@ -1,0 +1,15 @@
+[package]
+name = "fat-fuse"
+version = "0.1.0"
+authors = ["Steven Tang <steven.yc.tang@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "2.33.0"
+fuse = "0.3.1"
+time = "0.1.38"
+libc = "0.2.66"
+chrono = "0.4.10"
+lib_fat = { path = "./lib_fat" }
