@@ -18,8 +18,10 @@ pub fn read_sector(fat: &mut Fat, sector_number: u32) -> Vec<u8> {
 
     // Read
     let mut buffer = vec![0u8; fat.bpb.bytes_per_sector as usize];
-    fat.image.read_exact(&mut buffer).expect("Cannot read cluster");
-    return buffer;
+    fat.image
+        .read_exact(&mut buffer)
+        .expect("Cannot read cluster");
+    buffer
 }
 
 /// Reads the cluster starting with sector
@@ -28,7 +30,7 @@ pub fn read_cluster(fat: &mut Fat, first_sector: u32) -> Vec<u8> {
     for i in 0..fat.bpb.sectors_per_cluster {
         data.extend(read_sector(fat, first_sector + i as u32));
     }
-    return data;
+    data
 }
 
 /// Determine FAT entry offset -> (sector number, entry offset),
@@ -96,24 +98,24 @@ pub fn read_fat_entry(
 
             if cluster_number & 0x0001 != 0 {
                 // Odd cluster number
-                return cluster_entry_value >> 4;
+                cluster_entry_value >> 4
             } else {
                 // Even cluster number
-                return cluster_entry_value & 0x0FFF;
+                cluster_entry_value & 0x0FFF
             }
         }
         Fat16 => {
-            return (sector[fat_entry_offset as usize] as u32)
+            (sector[fat_entry_offset as usize] as u32)
                 | (sector[fat_entry_offset as usize + 1] as u32) << 8
         }
         Fat32 => {
-            let cluster_entry_value = (sector[fat_entry_offset as usize + 0]
+            let cluster_entry_value = (sector[fat_entry_offset as usize]
                 as u32)
                 | (sector[fat_entry_offset as usize + 1] as u32) << 8
                 | (sector[fat_entry_offset as usize + 2] as u32) << 16
                 | (sector[fat_entry_offset as usize + 3] as u32) << 24;
             // Higher 4 bits are reserved
-            return cluster_entry_value & 0x0FFFFFFF;
+            cluster_entry_value & 0x0FFFFFFF
         }
     }
 }
@@ -122,16 +124,16 @@ pub fn read_fat_entry(
 pub fn root_dir_sectors(fat: &Fat) -> u16 {
     // ceil of (number of root entries * 32 bytes per entry) / bytes per sector
     // Note: is 0 on FAT32 volumes
-    return ((fat.bpb.root_entry_count * 32) + (fat.bpb.bytes_per_sector - 1))
-        / fat.bpb.bytes_per_sector;
+    ((fat.bpb.root_entry_count * 32) + (fat.bpb.bytes_per_sector - 1))
+        / fat.bpb.bytes_per_sector
 }
 
 /// Calculate FAT size
 fn calculate_fat_size(fat: &Fat) -> u32 {
     if fat.bpb.fat_size_16 != 0 {
-        return fat.bpb.fat_size_16.into();
+        fat.bpb.fat_size_16.into()
     } else {
-        return fat.ebpb32.as_ref().unwrap().fat_size_32;
+        fat.ebpb32.as_ref().unwrap().fat_size_32
     }
 }
 
@@ -146,8 +148,8 @@ pub fn first_sector_of_cluster(fat: &mut Fat, cluster_number: u32) -> u32 {
         + (fat.bpb.num_fats as u32 * fat_size)
         + root_dir_sectors as u32;
 
-    return ((cluster_number - 2) * fat.bpb.sectors_per_cluster as u32)
-        + first_data_sector;
+    ((cluster_number - 2) * fat.bpb.sectors_per_cluster as u32)
+        + first_data_sector
 }
 
 /// Determine number of clusters of file
@@ -177,17 +179,16 @@ pub fn file_cluster_count(fat: &Fat, cluster_number: u32) -> u32 {
         current_block = fat_entry;
         n_blocks += 1;
     }
-
-    return n_blocks;
+    n_blocks
 }
 
 /// Whether FAT entry indicate end of file
 fn is_eof(fat: &Fat, fat_entry: u32) -> bool {
-    return match fat.fat_type {
+    match fat.fat_type {
         Fat12 => fat_entry >= 0x0FF8,
         Fat16 => fat_entry >= 0xFFF8,
         Fat32 => fat_entry >= 0x0FFFFFF8,
-    };
+    }
 }
 
 /// Read data
@@ -213,10 +214,10 @@ pub fn read_data(fat: &mut Fat, cluster_number: u32) -> (Vec<u8>, Option<u32>) {
     );
 
     let is_eof = is_eof(fat, fat_entry) || fat_entry == 0;
-    return match is_eof {
+    match is_eof {
         true => (sector, None),
         false => (sector, Some(fat_entry)),
-    };
+    }
 }
 
 /// Read all sectors of file
@@ -237,6 +238,5 @@ pub fn read_file_full(fat: &mut Fat, cluster_number: u32) -> Vec<u8> {
     }
     // Append last sector
     data.append(&mut sector);
-
-    return data;
+    data
 }

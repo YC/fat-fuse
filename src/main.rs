@@ -1,5 +1,5 @@
 extern crate clap;
-use clap::{Arg, App};
+use clap::{App, Arg};
 
 mod fat_fuse;
 use fat_fuse::FatFS;

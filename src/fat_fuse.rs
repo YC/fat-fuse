@@ -24,7 +24,7 @@ const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
 
 impl FatFS {
     pub fn new(filename: &str) -> FatFS {
-        let fat = Fat::mount_volume(&filename);
+        let fat = Fat::mount_volume(filename);
         println!("Volume type: {}", fat.fat_type());
         FatFS { fat }
     }
@@ -78,7 +78,7 @@ impl Filesystem for FatFS {
         let entry = self.fat.lookup(parent_inode, name.to_str().unwrap());
         match entry {
             None => reply.error(ENOENT),
-            Some(entry) => reply.entry(&TTL, &attr(&entry), 0),
+            Some(entry) => reply.entry(&TTL, &attr(entry), 0),
         }
     }
 
@@ -109,7 +109,7 @@ impl Filesystem for FatFS {
                 let entry = self.fat.get_inode(ino.try_into().unwrap());
                 match entry {
                     None => reply.error(ENOENT),
-                    Some(entry) => reply.attr(&TTL, &attr(&entry)),
+                    Some(entry) => reply.attr(&TTL, &attr(entry)),
                 }
             }
         }
@@ -145,15 +145,15 @@ impl Filesystem for FatFS {
 
         // Add entries
         for entry in dir {
-            if entry.attribute() & FatFileType::AttrHidden as u8 != 0 {
-                continue;
-            } else if entry.attribute() & FatFileType::AttrVolumeId as u8 != 0 {
+            if entry.attribute() & FatFileType::AttrHidden as u8 != 0
+                || entry.attribute() & FatFileType::AttrVolumeId as u8 != 0
+            {
                 continue;
             }
 
             // Only process file and directories
             let inode = entry.cluster_number().into();
-            let inode = if inode == root_inode.into() || inode == 0 as u64 {
+            let inode = if inode == root_inode.into() || inode == 0_u64 {
                 1
             } else {
                 inode
@@ -191,22 +191,22 @@ fn attr(entry: &FatDirectoryEntryContainer) -> FileAttr {
         panic!("Unrecognized file type");
     }
 
-    return FileAttr {
+    FileAttr {
         ino: entry.cluster_number().try_into().unwrap(),
         size: entry.size() as u64,
         blocks: entry.cluster_count().into(),
-        atime: Timespec::new(parse_access_date(&entry), 0),
-        mtime: Timespec::new(parse_modify_time(&entry), 0),
-        ctime: Timespec::new(parse_create_time(&entry), 0),
-        crtime: Timespec::new(parse_create_time(&entry), 0),
-        kind: kind,
+        atime: Timespec::new(parse_access_date(entry), 0),
+        mtime: Timespec::new(parse_modify_time(entry), 0),
+        ctime: Timespec::new(parse_create_time(entry), 0),
+        crtime: Timespec::new(parse_create_time(entry), 0),
+        kind,
         perm: 0o755,
         nlink: 1,
         uid: 0,
         gid: 0,
         rdev: 0,
         flags: 0,
-    };
+    }
 }
 
 // Parse modify time into timestamp
@@ -215,9 +215,9 @@ fn parse_modify_time(entry: &FatDirectoryEntryContainer) -> i64 {
     if month == 0 || day == 0 {
         return 0;
     }
-    return NaiveDate::from_ymd(year.into(), month.into(), day.into())
+    NaiveDate::from_ymd(year.into(), month.into(), day.into())
         .and_hms(hour.into(), minute.into(), second.into())
-        .timestamp();
+        .timestamp()
 }
 
 // Parse create time into timestamp
@@ -226,9 +226,9 @@ fn parse_create_time(entry: &FatDirectoryEntryContainer) -> i64 {
     if month == 0 || day == 0 {
         return 0;
     }
-    return NaiveDate::from_ymd(year.into(), month.into(), day.into())
+    NaiveDate::from_ymd(year.into(), month.into(), day.into())
         .and_hms(hour.into(), minute.into(), second.into())
-        .timestamp();
+        .timestamp()
 }
 
 // Parse last access time into timestamp
@@ -237,7 +237,7 @@ fn parse_access_date(entry: &FatDirectoryEntryContainer) -> i64 {
     if month == 0 || day == 0 {
         return 0;
     }
-    return NaiveDate::from_ymd(year.into(), month.into(), day.into())
+    NaiveDate::from_ymd(year.into(), month.into(), day.into())
         .and_hms(0, 0, 0)
-        .timestamp();
+        .timestamp()
 }

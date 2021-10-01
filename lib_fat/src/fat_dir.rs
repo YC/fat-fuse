@@ -40,25 +40,20 @@ pub fn read_root_dir(fat: &mut Fat) {
 }
 
 /// Retrieves the directory with specified inode
-pub fn get_dir<'a>(
-    fat: &'a mut Fat,
+pub fn get_dir(
+    fat: &mut Fat,
     inode: u32,
-) -> Option<&'a Vec<FatDirectoryEntryContainer>> {
+) -> Option<&Vec<FatDirectoryEntryContainer>> {
     let cached = fat.dir_cache.contains_key(&inode);
     if !cached {
         let dir_file = read_file_full(fat, inode);
         read_dir_chain(fat, inode, &dir_file, 0);
     }
-    return fat.dir_cache.get(&inode);
+    fat.dir_cache.get(&inode)
 }
 
 /// Reads a chain of directory entries
-pub fn read_dir_chain<'a>(
-    fat: &'a mut Fat,
-    inode: u32,
-    sector: &[u8],
-    start: u16,
-) {
+pub fn read_dir_chain(fat: &mut Fat, inode: u32, sector: &[u8], start: u16) {
     // Directory containers for entries
     let mut directory_entries: Vec<FatDirectoryEntryContainer> = vec![];
 
@@ -105,7 +100,7 @@ pub fn read_dir_chain<'a>(
 
                 // Move long entries
                 let mut long_entries: Vec<FatLongDirectoryEntry> = vec![];
-                while current_long_entries.len() > 0 {
+                while !current_long_entries.is_empty() {
                     let current_long_entry = current_long_entries.remove(0);
                     // Ensure that N is correct
                     let n: u8 = current_long_entries.len() as u8 + 1;
@@ -163,31 +158,30 @@ fn chksum(name: &[u8]) -> u8 {
         let (a2, _) = a1.overflowing_add(*c);
         sum = a2;
     }
-    return sum;
+    sum
 }
 
 impl FatDirectoryEntry {
     /// Combine low/hi fields to get cluster number (2 WORDs to a DWORD)
     pub fn cluster_number(&self) -> u32 {
-        return (self.first_cluster_hi as u32) << 16
-            | self.first_cluster_low as u32;
+        (self.first_cluster_hi as u32) << 16 | self.first_cluster_low as u32
     }
 }
 
 impl FatDirectoryEntryContainer {
     /// Get attribute
     pub fn attribute(&self) -> u8 {
-        return self.short_entry.attribute;
+        self.short_entry.attribute
     }
 
     /// Get size
     pub fn size(&self) -> u32 {
-        return self.short_entry.size;
+        self.short_entry.size
     }
 
     /// Get cluster number
     pub fn cluster_number(&self) -> u32 {
-        return self.short_entry.cluster_number();
+        self.short_entry.cluster_number()
     }
 
     /// Get cluster count of file
@@ -196,12 +190,12 @@ impl FatDirectoryEntryContainer {
         if self.cluster_number() == 0 {
             return 1;
         }
-        return self.cached_cluster_count;
+        self.cached_cluster_count
     }
 
     /// Returns properly formatted name of directory/file
     pub fn get_name(&self) -> &String {
-        return &self.cached_name;
+        &self.cached_name
     }
 
     /// Get creation time
@@ -214,7 +208,7 @@ impl FatDirectoryEntryContainer {
 
     /// Get last accessed date
     pub fn get_last_accessed_date(&self) -> (u16, u8, u8) {
-        return parse_date(self.short_entry.last_accessed);
+        parse_date(self.short_entry.last_accessed)
     }
 
     /// Get write time
@@ -227,7 +221,7 @@ impl FatDirectoryEntryContainer {
     /// Parses name into string
     fn parse_name(
         short_entry: &FatDirectoryEntry,
-        long_entries: &Vec<FatLongDirectoryEntry>,
+        long_entries: &[FatLongDirectoryEntry],
     ) -> String {
         match long_entries.len() {
             0 => {
@@ -272,7 +266,7 @@ impl FatDirectoryEntryContainer {
                 }
 
                 // Should technically also do a check for illegal characters...
-                return String::from_utf8(buf).unwrap();
+                String::from_utf8(buf).unwrap()
             }
             _ => {
                 // Declare array
@@ -300,9 +294,9 @@ impl FatDirectoryEntryContainer {
                 let index = name_bytes.iter().position(|&r| r == 0).unwrap();
                 let name: Vec<u16> = name_bytes[0..index].to_vec();
                 // To string
-                return decode_utf16(name)
+                decode_utf16(name)
                     .map(|r| r.unwrap_or(REPLACEMENT_CHARACTER))
-                    .collect::<String>();
+                    .collect::<String>()
             }
         }
     }
@@ -356,7 +350,7 @@ impl FatDirectoryEntry {
         let first_cluster_low: u16 = cursor.read_u16::<LittleEndian>().unwrap();
         let size: u32 = cursor.read_u32::<LittleEndian>().unwrap();
 
-        return FatDirectoryEntry {
+        FatDirectoryEntry {
             name,
             attribute,
             nt_reserved,
@@ -369,7 +363,7 @@ impl FatDirectoryEntry {
             write_date,
             first_cluster_low,
             size,
-        };
+        }
     }
 }
 
@@ -391,7 +385,7 @@ impl FatLongDirectoryEntry {
         let mut name3: [u16; 2] = Default::default();
         cursor.read_u16_into::<LittleEndian>(&mut name3).unwrap();
 
-        return FatLongDirectoryEntry {
+        FatLongDirectoryEntry {
             order,
             name1,
             attr,
@@ -400,6 +394,6 @@ impl FatLongDirectoryEntry {
             name2,
             first_cluster_low,
             name3,
-        };
+        }
     }
 }

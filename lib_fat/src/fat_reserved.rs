@@ -10,7 +10,7 @@ use super::{
 };
 
 // Reads reserved and inits Fat struct
-pub fn read_reserved<'a>(mut f: File) -> Fat {
+pub fn read_reserved(mut f: File) -> Fat {
     let mut buffer: [u8; 512] = [0; 512];
     f.read_exact(&mut buffer).expect("Cannot read boot sector");
 
@@ -93,7 +93,7 @@ pub fn read_reserved<'a>(mut f: File) -> Fat {
         fat.fat.insert(i as u32, sector);
     }
 
-    return fat;
+    fat
 }
 
 impl FatBs {
@@ -103,7 +103,7 @@ impl FatBs {
         jump.copy_from_slice(&boot_record[0..3]);
         let mut oem_name: [u8; 8] = Default::default();
         oem_name.copy_from_slice(&boot_record[3..11]);
-        return FatBs { jump, oem_name };
+        FatBs { jump, oem_name }
     }
 }
 
@@ -126,7 +126,7 @@ impl FatBpb {
         let hidden_sectors_count: u32 =
             cursor.read_u32::<LittleEndian>().unwrap();
         let total_sectors_32: u32 = cursor.read_u32::<LittleEndian>().unwrap();
-        return FatBpb {
+        FatBpb {
             bytes_per_sector,
             sectors_per_cluster,
             reserved_clusters,
@@ -139,7 +139,7 @@ impl FatBpb {
             heads,
             hidden_sectors_count,
             total_sectors_32,
-        };
+        }
     }
 }
 
@@ -159,14 +159,14 @@ impl FatEbpb {
         let mut fs_type: [u8; 8] = Default::default();
         cursor.read_exact(&mut fs_type).unwrap();
 
-        return FatEbpb {
+        FatEbpb {
             drive_number,
             reserved,
             boot_signature,
             volume_id,
             volume_label,
             fs_type,
-        };
+        }
     }
 }
 
@@ -194,7 +194,7 @@ impl Fat32Ebpb {
         let mut fs_type: [u8; 8] = Default::default();
         cursor.read_exact(&mut fs_type).unwrap();
 
-        return Fat32Ebpb {
+        Fat32Ebpb {
             fat_size_32,
             flags,
             version,
@@ -208,7 +208,7 @@ impl Fat32Ebpb {
             volume_id,
             volume_label,
             fs_type,
-        };
+        }
     }
 }
 

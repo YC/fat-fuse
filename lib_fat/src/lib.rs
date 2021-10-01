@@ -52,15 +52,15 @@ impl Fat {
         let mut fat = read_reserved(f);
         // Read the root directory
         read_root_dir(&mut fat);
-        return fat;
+        fat
     }
 
     /// Get root dir cluster number
     pub fn get_root_cluster_number(&self) -> u32 {
         if self.fat_type == FatType::Fat32 {
-            return self.ebpb32.as_ref().unwrap().root_cluster;
+            self.ebpb32.as_ref().unwrap().root_cluster
         } else {
-            return 0;
+            0
         }
     }
 
@@ -71,7 +71,7 @@ impl Fat {
         offset: u64,
         size: u32,
     ) -> Option<Vec<u8>> {
-        if self.inode_cache.contains_key(&ino) == false {
+        if !self.inode_cache.contains_key(&ino) {
             return None;
         }
 
@@ -90,7 +90,7 @@ impl Fat {
             tail = data.len();
         }
 
-        return Some(data[head..tail].to_vec());
+        Some(data[head..tail].to_vec())
     }
 
     /// Lookup child of parent by name
@@ -115,7 +115,7 @@ impl Fat {
                         return Some(child);
                     }
                 }
-                return None;
+                None
             }
         }
     }
@@ -125,12 +125,12 @@ impl Fat {
         match self.inode_cache.get(&inode) {
             None => None,
             Some(parent_inode) => {
-                for child in self.dir_cache.get(&parent_inode).unwrap() {
+                for child in self.dir_cache.get(parent_inode).unwrap() {
                     if child.cluster_number() == inode {
-                        return Some(&child);
+                        return Some(child);
                     }
                 }
-                return None;
+                None
             }
         }
     }
@@ -140,21 +140,21 @@ impl Fat {
         &mut self,
         inode: u32,
     ) -> Option<&Vec<FatDirectoryEntryContainer>> {
-        return get_dir(self, inode);
+        get_dir(self, inode)
     }
 
     /// Get OEM name
     pub fn oem_name(&self) -> &str {
-        return str::from_utf8(&self.bs.oem_name).unwrap();
+        str::from_utf8(&self.bs.oem_name).unwrap()
     }
 
     /// Get FAT type
     pub fn fat_type(&self) -> String {
-        return format!("{}", self.fat_type);
+        format!("{}", self.fat_type)
     }
 
     /// Is FAT32
     pub fn is_fat32(&self) -> bool {
-        return self.fat_type == FatType::Fat32;
+        self.fat_type == FatType::Fat32
     }
 }
