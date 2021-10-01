@@ -7,13 +7,13 @@ use super::{
     file_cluster_count, read_file_full, read_sector, root_dir_sectors, Fat,
     FatDirectoryEntry, FatDirectoryEntryContainer, FatFileType,
     FatLongDirectoryEntry,
-    FatType::{Fat12, Fat16, Fat32},
+    FatType,
 };
 
 /// Reads/loads root directory
 pub fn read_root_dir(fat: &mut Fat) {
     match fat.fat_type {
-        Fat12 | Fat16 => {
+        FatType::Fat12 | FatType::Fat16 => {
             // Fixed location on disk following last FAT
             let first_root_sector_num: u16 = fat.bpb.reserved_clusters
                 + (fat.bpb.num_fats as u16 * fat.bpb.fat_size_16);
@@ -30,7 +30,7 @@ pub fn read_root_dir(fat: &mut Fat) {
             // Read root dir and assign root cluster number of 0
             read_dir_chain(fat, 0, &root_dir, 0);
         }
-        Fat32 => {
+        FatType::Fat32 => {
             // For FAT32, treat root directory as file
             let root_cluster = fat.ebpb32.as_ref().unwrap().root_cluster;
             let root_dir = read_file_full(fat, root_cluster);
@@ -185,9 +185,9 @@ impl FatDirectoryEntryContainer {
     }
 
     /// Get cluster count of file
-    pub fn cluster_count(&self) -> u32 {
+    pub fn cluster_count(&self, is_fat32: bool) -> u32 {
         // Root dir for FAT12/16
-        if self.cluster_number() == 0 {
+        if self.cluster_number() == 0 && !is_fat32 {
             return 1;
         }
         self.cached_cluster_count
