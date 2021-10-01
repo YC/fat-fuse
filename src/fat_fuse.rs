@@ -78,7 +78,7 @@ impl Filesystem for FatFS {
         let entry = self.fat.lookup(parent_inode, name.to_str().unwrap());
         match entry {
             None => reply.error(ENOENT),
-            Some(entry) => reply.entry(&TTL, &attr(&entry, &self.fat), 0),
+            Some(entry) => reply.entry(&TTL, &attr(&entry), 0),
         }
     }
 
@@ -109,7 +109,7 @@ impl Filesystem for FatFS {
                 let entry = self.fat.get_inode(ino.try_into().unwrap());
                 match entry {
                     None => reply.error(ENOENT),
-                    Some(entry) => reply.attr(&TTL, &attr(&entry, &self.fat)),
+                    Some(entry) => reply.attr(&TTL, &attr(&entry)),
                 }
             }
         }
@@ -181,7 +181,7 @@ impl Filesystem for FatFS {
 }
 
 /// Converts directory entry to FileAttr
-fn attr(entry: &FatDirectoryEntryContainer, fat: &Fat) -> FileAttr {
+fn attr(entry: &FatDirectoryEntryContainer) -> FileAttr {
     let kind;
     if entry.attribute() & FatFileType::AttrDirectory as u8 != 0 {
         kind = FileType::Directory;
@@ -194,7 +194,7 @@ fn attr(entry: &FatDirectoryEntryContainer, fat: &Fat) -> FileAttr {
     return FileAttr {
         ino: entry.cluster_number().try_into().unwrap(),
         size: entry.size() as u64,
-        blocks: entry.cluster_count(fat).into(),
+        blocks: entry.cluster_count().into(),
         atime: Timespec::new(parse_access_date(&entry), 0),
         mtime: Timespec::new(parse_modify_time(&entry), 0),
         ctime: Timespec::new(parse_create_time(&entry), 0),

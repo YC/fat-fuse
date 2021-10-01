@@ -191,9 +191,9 @@ impl FatDirectoryEntryContainer {
     }
 
     /// Get cluster count of file
-    pub fn cluster_count(&self, fat: &Fat) -> u32 {
+    pub fn cluster_count(&self) -> u32 {
         // Root dir for FAT12/16
-        if self.cluster_number() == 0 && fat.fat_type != Fat32 {
+        if self.cluster_number() == 0 {
             return 1;
         }
         return self.cached_cluster_count;

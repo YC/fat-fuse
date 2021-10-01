@@ -95,11 +95,16 @@ impl Fat {
 
     /// Lookup child of parent by name
     pub fn lookup(
-        &self,
+        &mut self,
         parent_inode: u32,
         name: &str,
     ) -> Option<&FatDirectoryEntryContainer> {
         let name = name.to_lowercase();
+
+        // If not cached, parse parent first
+        if self.dir_cache.get(&parent_inode).is_none() {
+            self.list_directory(parent_inode);
+        }
 
         match self.dir_cache.get(&parent_inode) {
             None => None,
