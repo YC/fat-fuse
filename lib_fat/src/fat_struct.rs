@@ -18,6 +18,7 @@ impl fmt::Display for FatType {
 }
 
 /// Boot sector
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FatBs {
     // 0: Jump boot code
@@ -27,6 +28,7 @@ pub struct FatBs {
 }
 
 /// BIOS parameter block
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FatBpb {
     // B: Bytes per sector, 512/1024/2048/4096
@@ -58,6 +60,7 @@ pub struct FatBpb {
 }
 
 /// Extended BIOS parameter block (FAT12/FAT16)
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FatEbpb {
     // 24: Drive number
@@ -75,6 +78,7 @@ pub struct FatEbpb {
 }
 
 /// FAT32 EBPB
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Fat32Ebpb {
     // 24: Logical sectors per FAT
@@ -125,6 +129,7 @@ pub struct Fat32FsInfo {
 }
 
 /// FAT directory structure
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FatDirectoryEntry {
     // 0: Short name
@@ -167,6 +172,7 @@ pub enum FatFileType {
 }
 
 /// FAT long directory structure
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FatLongDirectoryEntry {
     // 0: Order
@@ -189,6 +195,7 @@ pub struct FatLongDirectoryEntry {
 
 /// FAT directory entry container
 /// For file, there must be 1 short entry and possibly multiple long entries
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct FatDirectoryEntryContainer {
     pub(crate) short_entry: FatDirectoryEntry,
