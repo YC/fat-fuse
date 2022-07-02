@@ -1,5 +1,6 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::ffi::OsStr;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 extern crate lib_fat;
 use lib_fat::{Fat, FatDirectoryEntryContainer, FatFileType};
@@ -7,11 +8,9 @@ use lib_fat::{Fat, FatDirectoryEntryContainer, FatFileType};
 extern crate libc;
 use libc::ENOENT;
 extern crate time;
-use time::Timespec;
-extern crate chrono;
-use chrono::NaiveDate;
+use time::{Date, Month, PrimitiveDateTime, Time};
 
-use fuse::{
+use fuser::{
     FileAttr, FileType, Filesystem, ReplyAttr, ReplyData, ReplyDirectory,
     ReplyEntry, Request,
 };
@@ -20,7 +19,7 @@ pub struct FatFS {
     fat: Fat,
 }
 
-const TTL: Timespec = Timespec { sec: 1, nsec: 0 };
+const TTL: Duration = Duration::from_secs(1);
 
 impl FatFS {
     pub fn new(filename: &str) -> FatFS {
@@ -39,6 +38,8 @@ impl Filesystem for FatFS {
         _fh: u64,
         offset: i64,
         size: u32,
+        _flags: i32,
+        _lock: Option<u64>,
         reply: ReplyData,
     ) {
         match self.fat.get_data(
@@ -93,10 +94,11 @@ impl Filesystem for FatFS {
                     ino: 1,
                     size: 0,
                     blocks: 1,
-                    atime: Timespec::new(0, 0),
-                    mtime: Timespec::new(0, 0),
-                    ctime: Timespec::new(0, 0),
-                    crtime: Timespec::new(0, 0),
+                    blksize: 0,
+                    atime: UNIX_EPOCH,
+                    mtime: UNIX_EPOCH,
+                    ctime: UNIX_EPOCH,
+                    crtime: UNIX_EPOCH,
                     kind: FileType::Directory,
                     perm: 0o755,
                     nlink: 1,
@@ -112,9 +114,13 @@ impl Filesystem for FatFS {
                 let entry = self.fat.get_inode(ino.try_into().unwrap());
                 match entry {
                     None => reply.error(ENOENT),
-                    Some(entry) => {
-                        reply.attr(&TTL, &attr(entry, self.fat.is_fat32()))
-                    }
+                    Some(entry) => reply.attr(
+                        &TTL,
+                        &attr(
+                            entry,
+                            self.fat.is_fat32(),
+                        ),
+                    ),
                 }
             }
         }
@@ -142,7 +148,7 @@ impl Filesystem for FatFS {
         };
 
         // Push . and .. for root
-        let mut entries: std::vec::Vec<(u64, fuse::FileType, String)> = vec![];
+        let mut entries: std::vec::Vec<(u64, fuser::FileType, String)> = vec![];
         if ino == 1 {
             entries.push((1, FileType::Directory, ".".to_string()));
             entries.push((1, FileType::Directory, "..".to_string()));
@@ -179,14 +185,17 @@ impl Filesystem for FatFS {
         for (i, entry) in entries.into_iter().enumerate().skip(offset as usize)
         {
             // i + 1 means the index of the next entry
-            reply.add(entry.0, (i + 1) as i64, entry.1, entry.2);
+            let _ = reply.add(entry.0, (i + 1) as i64, entry.1, entry.2);
         }
         reply.ok();
     }
 }
 
 /// Converts directory entry to FileAttr
-fn attr(entry: &FatDirectoryEntryContainer, is_fat32: bool) -> FileAttr {
+fn attr(
+    entry: &FatDirectoryEntryContainer,
+    is_fat32: bool,
+) -> FileAttr {
     let kind;
     if entry.attribute() & FatFileType::AttrDirectory as u8 != 0 {
         kind = FileType::Directory;
@@ -200,10 +209,11 @@ fn attr(entry: &FatDirectoryEntryContainer, is_fat32: bool) -> FileAttr {
         ino: entry.cluster_number().try_into().unwrap(),
         size: entry.size() as u64,
         blocks: entry.cluster_count(is_fat32).into(),
-        atime: Timespec::new(parse_access_date(entry), 0),
-        mtime: Timespec::new(parse_modify_time(entry), 0),
-        ctime: Timespec::new(parse_create_time(entry), 0),
-        crtime: Timespec::new(parse_create_time(entry), 0),
+        blksize: 0,
+        atime: unix_timestamp_to_systemtime(parse_access_date(entry)),
+        mtime: unix_timestamp_to_systemtime(parse_modify_time(entry)),
+        ctime: unix_timestamp_to_systemtime(parse_create_time(entry)),
+        crtime: unix_timestamp_to_systemtime(parse_create_time(entry)),
         kind,
         perm: 0o755,
         nlink: 1,
@@ -214,15 +224,34 @@ fn attr(entry: &FatDirectoryEntryContainer, is_fat32: bool) -> FileAttr {
     }
 }
 
+fn unix_timestamp_to_systemtime(timestamp: i64) -> SystemTime {
+    if timestamp < 0 {
+        SystemTime::UNIX_EPOCH
+            .checked_sub(Duration::from_secs(-timestamp as u64))
+            .unwrap()
+    } else {
+        SystemTime::UNIX_EPOCH
+            .checked_add(Duration::from_secs(timestamp as u64))
+            .unwrap()
+    }
+}
+
 // Parse modify time into timestamp
 fn parse_modify_time(entry: &FatDirectoryEntryContainer) -> i64 {
     let (year, month, day, hour, minute, second) = entry.get_write_time();
     if month == 0 || day == 0 {
         return 0;
     }
-    NaiveDate::from_ymd(year.into(), month.into(), day.into())
-        .and_hms(hour.into(), minute.into(), second.into())
-        .timestamp()
+
+    let date = Date::from_calendar_date(
+        year.into(),
+        Month::try_from(month).unwrap(),
+        day,
+    )
+    .unwrap();
+    let time = Time::from_hms(hour, minute, second).unwrap();
+    let dt = PrimitiveDateTime::new(date, time);
+    dt.assume_utc().unix_timestamp()
 }
 
 // Parse create time into timestamp
@@ -231,9 +260,15 @@ fn parse_create_time(entry: &FatDirectoryEntryContainer) -> i64 {
     if month == 0 || day == 0 {
         return 0;
     }
-    NaiveDate::from_ymd(year.into(), month.into(), day.into())
-        .and_hms(hour.into(), minute.into(), second.into())
-        .timestamp()
+    let date = Date::from_calendar_date(
+        year.into(),
+        Month::try_from(month).unwrap(),
+        day,
+    )
+    .unwrap();
+    let time = Time::from_hms(hour, minute, second as u8).unwrap();
+    let dt = PrimitiveDateTime::new(date, time);
+    dt.assume_utc().unix_timestamp()
 }
 
 // Parse last access time into timestamp
@@ -242,7 +277,14 @@ fn parse_access_date(entry: &FatDirectoryEntryContainer) -> i64 {
     if month == 0 || day == 0 {
         return 0;
     }
-    NaiveDate::from_ymd(year.into(), month.into(), day.into())
-        .and_hms(0, 0, 0)
-        .timestamp()
+
+    let date = Date::from_calendar_date(
+        year.into(),
+        Month::try_from(month).unwrap(),
+        day,
+    )
+    .unwrap();
+    let time = Time::MIDNIGHT;
+    let dt = PrimitiveDateTime::new(date, time);
+    dt.assume_utc().unix_timestamp()
 }

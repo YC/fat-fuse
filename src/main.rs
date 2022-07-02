@@ -16,5 +16,5 @@ fn main() {
 
     // Init and mount
     let fat_fs = FatFS::new(filename);
-    fuse::mount(fat_fs, &mount_point, &[]).unwrap();
+    fuser::mount2(fat_fs, &mount_point, &[]).unwrap();
 }
